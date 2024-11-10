@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<tool name="bcftools @EXECUTABLE@" id="bcftools_@EXECUTABLE@" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="@PROFILE@">
+<tool name="bcftools @EXECUTABLE@" id="bcftools_@EXECUTABLE@" version="@TOOL_VERSION@+galaxy_5" profile="@PROFILE@">
     <description>Create consensus sequence by applying VCF variants to a reference fasta file</description>
     <macros>
         <token name="@EXECUTABLE@">consensus</token>
@@ -26,8 +26,9 @@ bcftools @EXECUTABLE@
 
 ${section.iupac_codes}
 
-#if $section.mask:
-  --mask '${section.mask}'
+#if str($section.conditional_mask.selector) == "enabled":
+  --mask '${section.conditional_mask.mask}'
+  --mask-with '${section.conditional_mask.mask_with}'
 #end if
 
 #if $section.mark_del
@@ -74,7 +75,6 @@ ${section.iupac_codes}
         <expand macro="macro_input" />
         <expand macro="macro_fasta_ref" />
         <section name="sec_default" expanded="true" title="Default Options">
-            <param name="mask" type="data" format="tabular" label="Mask" optional="True" help="Replace regions with N" />
             <param name="iupac_codes" type="boolean" truevalue="--iupac-codes" falsevalue="" label="Iupac Codes" 
                    help="Output variants in the form of IUPAC ambiguity codes" />
             <expand macro="macro_sample" />
@@ -106,7 +106,7 @@ ${section.iupac_codes}
                 <when value="disabled"/>
                 <when value="enabled">
                     <param argument="--mask" type="data" format="tabular" label="Mask" help="Replace regions according to the next --mask-with option" />
-                    <param argument="--mask-with" type="text" value="N" optional="true" label="Mask with" help="Replace with CHAR (skips overlapping variants); change to uppercase (uc) or lowercase (lc)">
+                    <param argument="--mask-with" type="text" value="N" optional="true" label="Mask with" help="Replace with CHAR (skips overlapping variants) or change to uppercase (uc) or lowercase (lc)">
                         <sanitizer invalid_char="">
                             <valid initial="string.letters,string.digits">
                                 <add value="_" />
@@ -139,10 +139,15 @@ ${section.iupac_codes}
         </data>
     </outputs>
     <tests>
-        <test expect_num_outputs="2">
+        <test expect_num_outputs="2"> <!-- test1 -->
             <expand macro="test_using_reference" ref="consensus.fa" />
             <param name="input_file" ftype="vcf" value="consensus.vcf" />
-            <param name="mask" ftype="tabular" value="consensus.tab" />
+            <section name="sec_default">
+                <conditional name="conditional_mask">
+                    <param name="selector" value="enabled" />
+                    <param name="mask" ftype="tabular" value="consensus.tab" />
+                </conditional>
+            </section>
             <param name="chain" value="True" />
             <output name="output_file">
                 <assert_contents>
@@ -155,10 +160,15 @@ ${section.iupac_codes}
                 </assert_contents>
             </output>
         </test>
-        <test expect_num_outputs="2">
+        <test expect_num_outputs="2"> <!-- test2 -->
             <expand macro="test_using_reference" select_from="cached" ref="consensus" />
             <param name="input_file" ftype="vcf" dbkey="?" value="consensus.vcf" />
-            <param name="mask" ftype="tabular" value="consensus.tab" />
+            <section name="sec_default">
+                <conditional name="conditional_mask">
+                    <param name="selector" value="enabled" />
+                    <param name="mask" ftype="tabular" value="consensus.tab" />
+                </conditional>
+            </section>
             <param name="chain" value="True" />
             <output name="output_file">
                 <assert_contents>
@@ -171,10 +181,15 @@ ${section.iupac_codes}
                 </assert_contents>
             </output>
         </test>
-        <test expect_num_outputs="1">
+        <test expect_num_outputs="1"> <!-- test3 -->
             <expand macro="test_using_reference" ref="consensus.fa" />
             <param name="input_file" ftype="vcf" value="consensus.vcf" />
-            <param name="mask" ftype="tabular" value="consensus.tab" />
+            <section name="sec_default">
+                <conditional name="conditional_mask">
+                    <param name="selector" value="enabled" />
+                    <param name="mask" ftype="tabular" value="consensus.tab" />
+                </conditional>
+            </section>
             <param name="chain" value="False" />
             <param name="rename" value="True" />
             <output name="output_file">
@@ -186,7 +201,7 @@ ${section.iupac_codes}
                 </assert_contents>
             </output>
         </test>
-        <test expect_num_outputs="1">
+        <test expect_num_outputs="1"> <!-- test4 -->
             <expand macro="test_using_reference" ref="consensus.fa" />
             <param name="input_file" ftype="vcf" value="consensus.vcf" />
             <section name="sec_restrict">
@@ -199,7 +214,7 @@ ${section.iupac_codes}
             </output>
         </test>
         <!--Test absent option-->
-        <test expect_num_outputs="1">
+        <test expect_num_outputs="1"> <!-- test5 -->
             <expand macro="test_using_reference" ref="consensus.fa" />
             <param name="input_file" ftype="vcf" value="consensus.vcf" />
             <section name="sec_restrict">
@@ -216,7 +231,7 @@ ${section.iupac_codes}
             </assert_command>
         </test>
         <!--Test mask options -->
-        <test expect_num_outputs="1">
+        <test expect_num_outputs="1"> <!-- test6 -->
             <expand macro="test_using_reference" ref="consensus.fa" />
             <param name="input_file" ftype="vcf" value="consensus.vcf" />
             <section name="sec_restrict">
@@ -237,6 +252,28 @@ ${section.iupac_codes}
                 <has_text text="--mark-ins" />
                 <has_text text="--mark-snv" />
             </assert_command>
+        </test>
+        <test expect_num_outputs="2"> <!-- test7 -->
+            <expand macro="test_using_reference" ref="consensus.fa" />
+            <param name="input_file" ftype="vcf" value="consensus.vcf" />
+            <section name="sec_default">
+                <conditional name="conditional_mask">
+                    <param name="selector" value="enabled" />
+                    <param name="mask" ftype="tabular" value="consensus.tab" />
+                    <param name="mask_with" value="X" />
+                </conditional>
+            </section>
+            <param name="chain" value="True" />
+            <output name="output_file">
+                <assert_contents>
+                    <has_text text="XXXXXXXXXXXXXXXXXXXXXXXXXX" />
+                </assert_contents>
+            </output>
+            <output name="chain_file">
+                <assert_contents>
+                    <has_text text="chain 497 1 501 + 1 501 1 502 + 1 502 1" />
+                </assert_contents>
+            </output>
         </test>
     </tests>
     <help><![CDATA[
